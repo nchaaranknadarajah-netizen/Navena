@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Navena</title>
+
+<!-- PWA & Mobile Web App Meta Tags -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Navena">
+<meta name="theme-color" content="#0d0a0f">
+
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+
+<!-- Supabase JS Client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  :root{
+    --bg: #0d0a0f;
+    --wine: #5c1f36;
+    --gold: #c9a24d;
+    --gold-soft: #a98a55;
+    --ivory: #f0e9e4;
+    --mauve: #8a6b7a;
+    --line: rgba(201,162,77,0.18);
+    --radius: 2px;
+  }
+
+  *{ box-sizing: border-box; margin:0; padding:0; }
+  html, body{ height:100%; background: var(--bg); color: var(--ivory); font-family: 'Jost', sans-serif; font-weight: 300; overflow: hidden; }
+  body{ background: radial-gradient(circle at 20% 10%, rgba(92,31,54,0.35), transparent 45%), radial-gradient(circle at 85% 85%, rgba(92,31,54,0.25), transparent 50%), var(--bg); }
+  #stars{ position:fixed; inset:0; z-index:0; pointer-events:none; }
+
+  .app{ position:relative; z-index:1; max-width: 480px; margin: 0 auto; height: 100vh; height: 100dvh; display:flex; flex-direction:column; }
+  .screens{ flex:1; overflow-y:auto; -webkit-overflow-scrolling: touch; padding: 0 0 24px 0; }
+  .screen{ display:none; padding: 48px 28px 20px 28px; animation: fadeIn 0.5s ease; }
+  .screen.active{ display:block; }
+
+  @keyframes fadeIn{ from{ opacity:0; transform: translateY(8px); } to{ opacity:1; transform: translateY(0); } }
+  h1,h2,h3{ font-family:'Cormorant Garamond', serif; font-weight:500; color:var(--ivory); }
+  .eyebrow{ font-size: 12px; letter-spacing: 0.12em; color: var(--gold-soft); margin-bottom: 6px; }
+
+  input[type="text"], input[type="url"], textarea{
+    width: 100%; background: rgba(22,17,26,0.8); border: 1px solid var(--line); color: var(--ivory);
+    padding: 8px 12px; font-family: 'Jost', sans-serif; font-size: 13px; border-radius: var(--radius); outline: none;
+  }
+  input:focus, textarea:focus{ border-color: var(--gold); }
+
+  /* ---------- HOME ---------- */
+  .home-hero{ text-align:center; padding-top: 12px; }
+  .home-hero .greeting{ font-size: 15px; color: var(--mauve); letter-spacing: 0.04em; margin-bottom: 4px; }
+  .home-hero h1{ font-size: 52px; line-height: 1.05; font-style: italic; background: linear-gradient(180deg, var(--ivory), var(--gold-soft)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .divider{ width: 40px; height: 1px; background: var(--gold); margin: 22px auto; opacity: 0.6; }
+  .countdown{ text-align:center; margin: 18px 0 30px 0; }
+  .countdown .count-label{ font-size: 12px; letter-spacing: 0.14em; color: var(--mauve); margin-bottom: 10px; }
+  .countdown .count-number{ font-family: 'Cormorant Garamond', serif; font-size: 96px; line-height: 0.9; color: var(--ivory); }
+  .countdown .count-unit{ font-size: 14px; letter-spacing: 0.2em; color: var(--gold); margin-top: 4px; }
+  .countdown .count-sub{ margin-top: 14px; font-size: 13px; color: var(--mauve); font-style: italic; }
+
+  .memory-frame{ margin-top: 8px; border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 18px; background: linear-gradient(180deg, rgba(92,31,54,0.12), transparent); text-align:center; }
+  .memory-frame .frame-box{ width: 100%; aspect-ratio: 4/3; border: 1px dashed var(--line); display:flex; align-items:center; justify-content:center; color: var(--mauve); font-size: 13px; font-style: italic; margin-bottom: 14px; overflow:hidden; background: rgba(0,0,0,0.2); }
+  .memory-frame .frame-box img{ width: 100%; height: 100%; object-fit: cover; }
+  .memory-frame .caption{ font-size: 14px; color: var(--ivory); font-style: italic; line-height: 1.5; min-height: 21px; }
+
+  /* ---------- SCHEDULE & TO-DO ---------- */
+  .section-title{ font-size: 30px; font-style: italic; margin-bottom: 22px; }
+  .todo-item{ display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(201,162,77,0.1); }
+  .todo-item input[type="checkbox"]{ accent-color: var(--gold); width: 16px; height: 16px; cursor: pointer; }
+  .todo-item .task-time{ width: 65px; text-align: center; color: var(--gold-soft); }
+  .todo-item .task-text{ flex: 1; }
+  .todo-item.completed .task-text{ text-decoration: line-through; opacity: 0.5; }
+
+  /* ---------- FOR YOU NOTES ---------- */
+  .note-stack{ display:flex; flex-direction:column; gap: 14px; }
+  .note{ border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; background: linear-gradient(160deg, rgba(92,31,54,0.15), rgba(13,10,15,0)); position: relative; }
+  .note input.note-tag-input{ font-size: 11px; letter-spacing: 0.12em; color: var(--gold); background: transparent; border: none; margin-bottom: 6px; padding: 0; }
+  .note textarea.note-body-input{ font-size: 14px; line-height: 1.5; color: var(--ivory); font-style: italic; background: transparent; border: none; resize: none; min-height: 50px; padding: 0; }
+
+  /* ---------- MEMORIES ---------- */
+  .gallery{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .gal-item{ border: 1px solid var(--line); position: relative; background: rgba(22,17,26,0.6); }
+  .gal-item .gal-box{ aspect-ratio: 1; display:flex; align-items:center; justify-content:center; border-bottom: 1px solid var(--line); overflow:hidden; }
+  .gal-item .gal-box img{ width: 100%; height: 100%; object-fit: cover; }
+  .gal-item .gal-cap-input{ width: 100%; border: none; background: transparent; padding: 8px 10px; font-size: 12px; color: var(--ivory); }
+  .del-btn{ position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; background: rgba(13,10,15,0.8); border: 1px solid var(--line); color: var(--ivory); border-radius: 50%; cursor:pointer; font-size: 12px; z-index: 2; }
+  .add-photo-tile{ border: 1px dashed var(--gold); aspect-ratio: 1; display:flex; flex-direction:column; align-items:center; justify-content:center; color: var(--gold); font-size: 13px; cursor: pointer; text-align: center; gap: 4px; background: rgba(92,31,54,0.1); }
+
+  /* ---------- MUSIC ---------- */
+  .track-row-edit{ display:flex; align-items:center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .track-num-edit{ font-family:'Cormorant Garamond', serif; font-size: 18px; color: var(--gold-soft); width: 20px; }
+  .track-inputs{ flex: 1; display: flex; flex-direction: column; gap: 4px; }
+
+  .action-btn{ margin-top: 16px; width: 100%; background: transparent; border: 1px dashed var(--line); color: var(--gold-soft); padding: 10px; font-family: 'Jost', sans-serif; font-size: 13px; cursor: pointer; }
+  .del-btn-simple{ background:none; border:none; color: var(--mauve); font-size: 16px; cursor:pointer; padding: 0 4px; }
+
+  /* ---------- SURPRISE ---------- */
+  .surprise-screen{ display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; min-height: calc(100dvh - 160px); }
+  .surprise-btn{ width: 150px; height: 150px; border-radius: 50%; border: 1px solid var(--gold); background: radial-gradient(circle, rgba(92,31,54,0.4), transparent 70%); color: var(--gold); font-family:'Cormorant Garamond', serif; font-size: 20px; font-style: italic; display:flex; align-items:center; justify-content:center; cursor:pointer; animation: pulse 2.2s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ box-shadow: 0 0 0px rgba(201,162,77,0.0); } 50%{ box-shadow: 0 0 26px rgba(201,162,77,0.35); } }
+  .surprise-reveal{ display:none; padding: 20px; }
+  .surprise-reveal.show{ display:block; animation: revealIn 1.1s ease; }
+  @keyframes revealIn{ 0%{ opacity:0; transform: scale(0.9); } 100%{ opacity:1; transform: scale(1); } }
+
+  /* ---------- NAV ---------- */
+  nav{ position:relative; z-index:2; display:flex; border-top: 1px solid var(--line); background: rgba(13,10,15,0.92); backdrop-filter: blur(6px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  nav button{ flex:1; background:none; border:none; color: var(--mauve); font-size: 10px; letter-spacing: 0.06em; padding: 12px 4px 10px 4px; display:flex; flex-direction:column; align-items:center; gap: 5px; cursor:pointer; }
+  nav button .icon{ font-family:'Cormorant Garamond', serif; font-size: 18px; font-style: italic; }
+  nav button.active{ color: var(--gold); }
+
+  /* reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .surprise-btn { animation: none !important; }
+    .screen { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars" aria-hidden="true"></canvas>
+
+<div class="app">
+  <div class="screens">
+
+    <!-- HOME -->
+    <section class="screen active" id="screen-home">
+      <div class="home-hero">
+        <div class="greeting">for</div>
+        <h1>Navena</h1>
+      </div>
+
+      <div class="countdown">
+        <div class="count-label">DAYS UNTIL HER BIRTHDAY</div>
+        <div class="count-number" id="countdownNumber">--</div>
+        <div class="count-unit">SEPTEMBER 5</div>
+        <div class="count-sub" id="countdownSub"></div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="memory-frame">
+        <div class="frame-box" id="rotatingPhoto" aria-live="polite">✦ photo goes here ✦</div>
+        <div class="caption" id="rotatingCaption">Add your first photo in Memories!</div>
+      </div>
+    </section>
+
+    <!-- SCHEDULE -->
+    <section class="screen" id="screen-schedule">
+      <div class="eyebrow">daily plan</div>
+      <div class="section-title">Schedule & Tasks</div>
+      <div id="todoContainer" aria-live="polite"></div>
+      <button type="button" class="action-btn" id="addTaskBtn">+ Add task</button>
+    </section>
+
+    <!-- FOR YOU (NOTES & QUOTES) -->
+    <section class="screen" id="screen-foryou">
+      <div class="eyebrow">from me, to you</div>
+      <div class="section-title">For You</div>
+      <div class="note-stack" id="noteStack" aria-live="polite"></div>
+      <button type="button" class="action-btn" id="addNoteBtn">+ Add note or quote</button>
+    </section>
+
+    <!-- MEMORIES -->
+    <section class="screen" id="screen-memories">
+      <div class="eyebrow">a little archive</div>
+      <div class="section-title">Memories</div>
+      <input type="file" id="photoInput" accept="image/*" style="display:none;">
+      <div class="gallery" id="gallery" aria-live="polite"></div>
+    </section>
+
+    <!-- MUSIC -->
+    <section class="screen" id="screen-music">
+      <div class="eyebrow">a playlist for her</div>
+      <div class="section-title">Music</div>
+      <div style="margin-bottom: 20px;">
+        <label style="font-size: 11px; color: var(--gold-soft); letter-spacing: 0.1em; display: block; margin-bottom: 6px;">PLAYLIST LINK</label>
+        <input type="url" id="playlistUrl" placeholder="Paste Spotify or Apple Music link...">
+      </div>
+      <div id="trackList"></div>
+      <button type="button" class="action-btn" id="addSongBtn">+ Add a song</button>
+    </section>
+
+    <!-- SURPRISE -->
+    <section class="screen" id="screen-surprise">
+      <div class="surprise-screen">
+        <div id="surpriseIdle">
+          <button type="button" class="surprise-btn" id="surpriseBtn" aria-haspopup="dialog" aria-controls="surpriseReveal">tap me</button>
+        </div>
+        <div class="surprise-reveal" id="surpriseReveal" role="dialog" aria-hidden="true">
+          <div style="font-size:26px; margin-bottom:18px; color:var(--gold);">✦ ✧ ✦</div>
+          <h2 style="font-size: 34px; font-style: italic; margin-bottom: 16px;">Happy Birthday, Navena</h2>
+          <p style="font-size: 14px; line-height: 1.8; color: var(--mauve); font-style: italic;">Replace this with the big message, animation, or memory collection you want her to see when she taps the button.</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <nav>
+    <button type="button" class="nav-btn active" data-screen="home" aria-label="Home"><span class="icon">⌂</span>Home</button>
+    <button type="button" class="nav-btn" data-screen="schedule" aria-label="Schedule"><span class="icon">☾</span>Schedule</button>
+    <button type="button" class="nav-btn" data-screen="foryou" aria-label="For You"><span class="icon">♡</span>For You</button>
+    <button type="button" class="nav-btn" data-screen="memories" aria-label="Memories"><span class="icon">✦</span>Memories</button>
+    <button type="button" class="nav-btn" data-screen="music" aria-label="Music"><span class="icon">♫</span>Music</button>
+    <button type="button" class="nav-btn" data-screen="surprise" aria-label="Surprise"><span class="icon">✧</span>Surprise</button>
+  </nav>
+</div>
+
+<script>
+  // ---------- SUPABASE CONFIGURATION (safe placeholders) ----------
+  // Replace with your values at deploy time; do NOT hardcode secrets in public repos.
+  const SUPABASE_URL = 'REPLACE_WITH_SUPABASE_URL';
+  const SUPABASE_ANON_KEY = 'REPLACE_WITH_ANON_KEY';
+
+  const sb = (SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL !== 'REPLACE_WITH_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'REPLACE_WITH_ANON_KEY')
+    ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  if (!sb) console.warn('Supabase client not initialized — uploads will use local fallback.');
+
+  // ---------- NAV ----------
+  const buttons = Array.from(document.querySelectorAll('.nav-btn'));
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      const target = document.getElementById('screen-' + btn.dataset.screen);
+      if (target) target.classList.add('active');
+      const screens = document.querySelector('.screens');
+      if (screens) screens.scrollTop = 0;
+    });
+  });
+
+  // ---------- COUNTDOWN ----------
+  function updateCountdown(){
+    const now = new Date();
+    const year = now.getFullYear();
+    let next = new Date(year, 8, 5);
+    if (next < now) next = new Date(year + 1, 8, 5);
+    const days = Math.ceil((next - now) / (1000 * 60 * 60 * 24));
+    const numEl = document.getElementById('countdownNumber');
+    const subEl = document.getElementById('countdownSub');
+    if (numEl) numEl.textContent = days;
+    if (subEl) subEl.textContent = days === 0 ? "today's the day ✦" : 'counting every one of them';
+  }
+  updateCountdown();
+
+  // ---------- SAFE DOM HELPERS ----------
+  function el(tag, props = {}, ...children) {
+    const node = document.createElement(tag);
+    Object.entries(props).forEach(([k,v]) => {
+      if (k === 'class') node.className = v;
+      else if (k === 'text') node.textContent = v;
+      else if (k === 'html') node.innerHTML = v;
+      else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2).toLowerCase(), v);
+      else node.setAttribute(k, v);
+    });
+    children.flat().forEach(c => {
+      if (c == null) return;
+      if (typeof c === 'string' || typeof c === 'number') node.appendChild(document.createTextNode(String(c)));
+      else node.appendChild(c);
+    });
+    return node;
+  }
+
+  // ---------- SCHEDULE & TO-DO (safe rendering) ----------
+  let storedTodos = JSON.parse(localStorage.getItem('navena_todos')) || [
+    { time: '08:00', task: 'Class / Work', done: false }
+  ];
+  function saveTodos() {
+    localStorage.setItem('navena_todos', JSON.stringify(storedTodos));
+    renderTodos();
+  }
+  function renderTodos() {
+    const c = document.getElementById('todoContainer');
+    if (!c) return;
+    c.innerHTML = '';
+    storedTodos.forEach((item, i) => {
+      const checkbox = el('input', { type: 'checkbox', checked: item.done ? 'true' : null, onchange: () => { storedTodos[i].done = !storedTodos[i].done; saveTodos(); } });
+      const timeInput = el('input', { type: 'text', class: 'task-time', value: item.time || '', placeholder: '00:00' });
+      timeInput.addEventListener('change', (e) => { updateTodo(i, 'time', e.target.value); });
+      const taskInput = el('input', { type: 'text', class: 'task-text', value: item.task || '', placeholder: 'Task...' });
+      taskInput.addEventListener('change', (e) => { updateTodo(i, 'task', e.target.value); });
+      const delBtn = el('button', { type: 'button', class: 'del-btn-simple', onclick: () => deleteTodo(i), 'aria-label': 'Delete task' }, '×');
+
+      const row = el('div', { class: `todo-item ${item.done ? 'completed' : ''}` }, checkbox, timeInput, taskInput, delBtn);
+      c.appendChild(row);
+    });
+  }
+  window.toggleTodo = (i) => { storedTodos[i].done = !storedTodos[i].done; saveTodos(); };
+  window.updateTodo = (i, k, v) => { storedTodos[i][k] = v; localStorage.setItem('navena_todos', JSON.stringify(storedTodos)); };
+  window.deleteTodo = (i) => { storedTodos.splice(i, 1); saveTodos(); };
+  document.getElementById('addTaskBtn').addEventListener('click', () => { storedTodos.push({ time: '', task: '', done: false }); saveTodos(); });
+  renderTodos();
+
+  // ---------- FOR YOU NOTES & QUOTES (safe rendering) ----------
+  let storedNotes = JSON.parse(localStorage.getItem('navena_notes')) || [
+    { tag: 'OPEN ANYTIME', body: 'Replace this with a sweet message or quote.' }
+  ];
+  function saveNotes() {
+    localStorage.setItem('navena_notes', JSON.stringify(storedNotes));
+    renderNotes();
+  }
+  function renderNotes() {
+    const stack = document.getElementById('noteStack');
+    if (!stack) return;
+    stack.innerHTML = '';
+    storedNotes.forEach((n, i) => {
+      const del = el('button', { type: 'button', class: 'del-btn', onclick: () => deleteNote(i), 'aria-label': 'Delete note' }, '×');
+      const tag = el('input', { type: 'text', class: 'note-tag-input', value: n.tag || '', placeholder: 'TITLE / TAG' });
+      tag.addEventListener('change', (e) => updateNote(i, 'tag', e.target.value));
+      const body = el('textarea', { class: 'note-body-input', placeholder: 'Type a note or quote...' }, n.body || '');
+      body.addEventListener('change', (e) => updateNote(i, 'body', e.target.value));
+      const card = el('div', { class: 'note' }, del, tag, body);
+      stack.appendChild(card);
+    });
+  }
+  window.updateNote = (i, k, v) => { storedNotes[i][k] = v; localStorage.setItem('navena_notes', JSON.stringify(storedNotes)); };
+  window.deleteNote = (i) => { storedNotes.splice(i, 1); saveNotes(); };
+  document.getElementById('addNoteBtn').addEventListener('click', () => { storedNotes.push({ tag: 'NEW NOTE', body: '' }); saveNotes(); });
+  renderNotes();
+
+  // ---------- MEMORIES GALLERY (SUPABASE UPLOAD) ----------
+  let storedMemories = JSON.parse(localStorage.getItem('navena_memories')) || [];
+
+  function saveMemories() {
+    localStorage.setItem('navena_memories', JSON.stringify(storedMemories));
+    renderGallery();
+  }
+
+  function renderGallery() {
+    const gallery = document.getElementById('gallery');
+    if (!gallery) return;
+    gallery.innerHTML = '';
+
+    storedMemories.forEach((item, index) => {
+      const del = el('button', { type: 'button', class: 'del-btn', onclick: () => deleteMemory(index), 'aria-label': 'Delete photo' }, '×');
+      const img = el('img', { src: item.src, alt: item.caption || 'Memory photo' });
+      const box = el('div', { class: 'gal-box' }, img);
+      const cap = el('input', { type: 'text', class: 'gal-cap-input', value: item.caption || '', placeholder: 'Add caption...' });
+      cap.addEventListener('change', (e) => updateCaption(index, e.target.value));
+      const itemEl = el('div', { class: 'gal-item' }, del, box, cap);
+      gallery.appendChild(itemEl);
+    });
+
+    const addTile = el('div', { class: 'add-photo-tile', role: 'button', tabindex: '0', onclick: () => document.getElementById('photoInput').click() }, el('span', {}, '+ Add photo'));
+    addTile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') document.getElementById('photoInput').click(); });
+    gallery.appendChild(addTile);
+  }
+
+  window.deleteMemory = (i) => { storedMemories.splice(i, 1); saveMemories(); };
+  window.updateCaption = (i, val) => { storedMemories[i].caption = val; localStorage.setItem('navena_memories', JSON.stringify(storedMemories)); };
+
+  document.getElementById('photoInput').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // If Supabase credentials are set, upload directly to Supabase Storage Bucket
+    if (sb) {
+      const fileName = `${Date.now()}_${file.name}`;
+      try {
+        const { data: uploadData, error: uploadError } = await sb.storage.from('memories').upload(fileName, file);
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData, error: publicUrlError } = sb.storage.from('memories').getPublicUrl(fileName);
+        if (publicUrlError) throw publicUrlError;
+        const publicUrl = publicUrlData && publicUrlData.publicUrl ? publicUrlData.publicUrl : (publicUrlData?.publicURL || null);
+        if (!publicUrl) throw new Error('Could not get public URL for uploaded file.');
+        storedMemories.push({ src: publicUrl, caption: '' });
+        saveMemories();
+      } catch (err) {
+        console.error('Supabase upload error', err);
+        alert('Upload error: ' + (err.message || err));
+      }
+    } else {
+      // Fallback: small preview stored as data URL (warn about size)
+      if (file.size > 1024 * 1024 * 2) { // 2MB threshold warning
+        if (!confirm('This photo is large and storing it locally may exceed browser storage limits. Continue with a local preview?')) {
+          this.value = '';
+          return;
+        }
+      }
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        storedMemories.push({ src: evt.target.result, caption: '' });
+        saveMemories();
+      };
+      reader.readAsDataURL(file);
+    }
+    this.value = '';
+  });
+  renderGallery();
+
+  // Home Screen Rotator
+  let memIndex = -1;
+  const frameBox = document.getElementById('rotatingPhoto');
+  const frameCaption = document.getElementById('rotatingCaption');
+  function rotateMemory() {
+    if (!frameBox || !frameCaption) return;
+    if (storedMemories.length > 0) {
+      memIndex = (memIndex + 1) % storedMemories.length;
+      frameBox.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = storedMemories[memIndex].src;
+      img.alt = storedMemories[memIndex].caption || 'Memory photo';
+      frameBox.appendChild(img);
+      frameCaption.textContent = storedMemories[memIndex].caption || '✦ ✦ ✦';
+    } else {
+      frameBox.textContent = '✦ photo goes here ✦';
+      frameCaption.textContent = 'Add your first photo in Memories!';
+    }
+  }
+  rotateMemory();
+  setInterval(rotateMemory, 4000);
+
+  // ---------- MUSIC TRACKLIST (safe rendering) ----------
+  let storedTracks = JSON.parse(localStorage.getItem('navena_tracks')) || [{ title: '', artist: '' }];
+  const playlistUrlInput = document.getElementById('playlistUrl');
+  playlistUrlInput.value = localStorage.getItem('navena_playlist_url') || '';
+  playlistUrlInput.addEventListener('change', (e) => localStorage.setItem('navena_playlist_url', e.target.value));
+
+  function saveTracks() {
+    localStorage.setItem('navena_tracks', JSON.stringify(storedTracks));
+    renderTracks();
+  }
+  function renderTracks() {
+    const trackList = document.getElementById('trackList');
+    if (!trackList) return;
+    trackList.innerHTML = '';
+    storedTracks.forEach((t, i) => {
+      const num = el('div', { class: 'track-num-edit' }, String(i+1).padStart(2,'0'));
+      const title = el('input', { type: 'text', placeholder: 'Song title', value: t.title || '' });
+      title.addEventListener('change', (e) => updateTrack(i, 'title', e.target.value));
+      const artist = el('input', { type: 'text', placeholder: 'Artist', value: t.artist || '' });
+      artist.addEventListener('change', (e) => updateTrack(i, 'artist', e.target.value));
+      const inputs = el('div', { class: 'track-inputs' }, title, artist);
+      const del = el('button', { type: 'button', class: 'del-btn-simple', onclick: () => deleteTrack(i), 'aria-label': 'Delete song' }, '×');
+      const row = el('div', { class: 'track-row-edit' }, num, inputs, del);
+      trackList.appendChild(row);
+    });
+  }
+  window.updateTrack = (i, f, v) => { storedTracks[i][f] = v; localStorage.setItem('navena_tracks', JSON.stringify(storedTracks)); };
+  window.deleteTrack = (i) => { storedTracks.splice(i, 1); saveTracks(); };
+  document.getElementById('addSongBtn').addEventListener('click', () => { storedTracks.push({ title: '', artist: '' }); saveTracks(); });
+  renderTracks();
+
+  // ---------- SURPRISE REVEAL ----------
+  document.getElementById('surpriseBtn').addEventListener('click', () => {
+    const idle = document.getElementById('surpriseIdle');
+    const reveal = document.getElementById('surpriseReveal');
+    if (idle) idle.style.display = 'none';
+    if (reveal) {
+      reveal.classList.add('show');
+      reveal.setAttribute('aria-hidden', 'false');
+    }
+  });
+
+  // ---------- BACKGROUND STARS ----------
+  const canvas = document.getElementById('stars');
+  const ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+  function resize(){ if (!canvas) return; canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  const stars = Array.from({length: 60}, () => ({
+    x: Math.random() * (canvas ? canvas.width : 0),
+    y: Math.random() * (canvas ? canvas.height : 0),
+    r: Math.random() * 1.1 + 0.2,
+    a: Math.random() * 0.5 + 0.15
+  }));
+  function drawStars(){
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#c9a24d';
+    stars.forEach(s => {
+      s.a += (Math.random() - 0.5) * 0.02;
+      s.a = Math.max(0.05, Math.min(0.6, s.a));
+      ctx.globalAlpha = s.a;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    requestAnimationFrame(drawStars);
+  }
+  drawStars();
+</script>
+
+</body>
+</html>
