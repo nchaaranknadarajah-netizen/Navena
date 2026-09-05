@@ -1,0 +1,15 @@
+{
+  "name": "Navena",
+  "short_name": "Navena",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0d0a0f",
+  "theme_color": "#0d0a0f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
